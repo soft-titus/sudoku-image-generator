@@ -26,17 +26,7 @@ import config
 
 
 def parse_csv_numbers(value: str) -> List[int]:
-    """Parse a comma-separated string into a list of integers.
-
-    This function is intentionally permissive. Any parsing error
-    results in a best-effort output or an empty list.
-
-    Args:
-        value: Comma-separated string of numbers.
-
-    Returns:
-        List of integers.
-    """
+    """Parse a comma-separated string into a flat list of integers."""
     try:
         return [int(item.strip()) for item in value.split(",")]
     except Exception:  # pylint: disable=broad-except
@@ -44,55 +34,67 @@ def parse_csv_numbers(value: str) -> List[int]:
         return []
 
 
-def generate_random_solution(puzzle_size: int) -> List[int]:
-    """Generate a random solution matrix.
-
-    The generated data is NOT guaranteed to be a valid Sudoku solution.
-
-    Args:
-        puzzle_size: Size of the puzzle (e.g., 4, 9, 16).
-
-    Returns:
-        A flat list of random integers.
+def to_matrix(flat: List[int], puzzle_size: int) -> List[List[int]]:
     """
-    total = puzzle_size * puzzle_size
-    return [random.randint(1, puzzle_size) for _ in range(total)]
+    Convert a flat list into a 2D matrix.
+
+    If the flat list length is invalid, return an empty matrix.
+    """
+    expected = puzzle_size * puzzle_size
+    if len(flat) != expected:
+        logging.warning(
+            "Invalid flat list length=%d expected=%d",
+            len(flat),
+            expected,
+        )
+        return []
+
+    return [
+        flat[row * puzzle_size : (row + 1) * puzzle_size] for row in range(puzzle_size)
+    ]
 
 
-def generate_random_puzzle(solution: List[int]) -> List[int]:
-    """Generate a puzzle by removing approximately 50% of the solution values.
+def generate_random_solution(puzzle_size: int) -> List[List[int]]:
+    """Generate a random 2D solution matrix (not guaranteed valid Sudoku)."""
+    return [
+        [random.randint(1, puzzle_size) for _ in range(puzzle_size)]
+        for _ in range(puzzle_size)
+    ]
 
+
+def generate_random_puzzle(solution: List[List[int]]) -> List[List[int]]:
+    """
+    Generate a puzzle by removing ~50% of values from the solution.
     Removed values are replaced with zeroes.
-
-    Args:
-        solution: Flat list representing the solution.
-
-    Returns:
-        A modified puzzle list.
     """
-    puzzle = solution.copy()
-    total = len(puzzle)
-    remove_count = total // 2
+    puzzle = [row.copy() for row in solution]
+    puzzle_size = len(puzzle)
+    total_cells = puzzle_size * puzzle_size
+    remove_count = total_cells // 2
 
-    for index in random.sample(range(total), remove_count):
-        puzzle[index] = 0
+    indices = random.sample(range(total_cells), remove_count)
+    for idx in indices:
+        row = idx // puzzle_size
+        col = idx % puzzle_size
+        puzzle[row][col] = 0
 
     return puzzle
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command-line arguments.
-
-    Returns:
-        Parsed arguments namespace.
-    """
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Sudoku test data ingester")
     parser.add_argument("--puzzle-id", required=True, help="Puzzle ID (required)")
     parser.add_argument(
-        "--puzzle-size", type=int, default=9, help="Puzzle size (default: 9)"
+        "--puzzle-size",
+        type=int,
+        default=9,
+        help="Puzzle size (default: 9)",
     )
     parser.add_argument(
-        "--level", default="EASY", help="Puzzle difficulty level (default: EASY)"
+        "--level",
+        default="EASY",
+        help="Puzzle difficulty level (default: EASY)",
     )
     parser.add_argument(
         "--status",
@@ -105,10 +107,7 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Entry point for the ingester.
-
-    Inserts or updates a Sudoku puzzle document in MongoDB using upsert.
-    """
+    """Entry point for the ingester."""
     logging.basicConfig(
         level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(message)s",
@@ -118,18 +117,18 @@ def main() -> None:
     args = parse_arguments()
 
     # Solution handling
-    solution: List[int] = (
-        parse_csv_numbers(args.solution)
-        if args.solution
-        else generate_random_solution(args.puzzle_size)
-    )
+    if args.solution:
+        flat_solution = parse_csv_numbers(args.solution)
+        solution = to_matrix(flat_solution, args.puzzle_size)
+    else:
+        solution = generate_random_solution(args.puzzle_size)
 
     # Puzzle handling
-    puzzle: List[int] = (
-        parse_csv_numbers(args.puzzle)
-        if args.puzzle
-        else generate_random_puzzle(solution)
-    )
+    if args.puzzle:
+        flat_puzzle = parse_csv_numbers(args.puzzle)
+        puzzle = to_matrix(flat_puzzle, args.puzzle_size)
+    else:
+        puzzle = generate_random_puzzle(solution)
 
     try:
         client = MongoClient(config.MONGO_URI, serverSelectionTimeoutMS=10_000)
