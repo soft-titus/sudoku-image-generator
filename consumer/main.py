@@ -20,6 +20,11 @@ def create_consumer() -> Consumer:
     return Consumer(consumer_config)
 
 
+def is_heartbeat(payload: Dict[str, Any]) -> bool:
+    """Determine if the message is a heartbeat message."""
+    return payload.get("type") == "heartbeat"
+
+
 def process_message(payload: Dict[str, Any], key: Optional[str]) -> None:
     """Placeholder for processing the Kafka message."""
     logging.debug("Processing payload with key=%s: %s", key, payload)
@@ -72,6 +77,11 @@ def main() -> None:
                 msg.offset(),
                 key_str,
             )
+
+            if is_heartbeat(payload):
+                logging.debug("Skipping heartbeat message with key=%s", key_str)
+                consumer.commit(msg)
+                continue
 
             logging.debug("Payload: %s", payload)
 
