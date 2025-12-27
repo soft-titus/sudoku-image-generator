@@ -14,3 +14,12 @@
 - fix: updated requirements.txt
 - feat: Add ingester
 
+
+
+## 1.1.1 - 2025-12-27
+- Merge pull request #2 from soft-titus/dev
+- fix: handling non-retriable scenario
+- fix: should save solution and puzzle as 2D array instead of flat array
+- fix: skip heartbeat messages
+- fix: update .env.example, add S3_PROTOCOL env var
+
