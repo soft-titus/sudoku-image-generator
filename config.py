@@ -61,7 +61,6 @@ S3_HOST = os.getenv("S3_HOST")
 S3_PORT = os.getenv("S3_PORT")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "sudoku")
 
-
 S3_ENDPOINT_URL = ""
 if S3_HOST:
     S3_ENDPOINT_URL = f"{S3_PROTOCOL}://{S3_HOST}"

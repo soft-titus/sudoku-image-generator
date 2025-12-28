@@ -14,6 +14,7 @@ from pymongo.errors import PyMongoError
 from PIL import Image, ImageDraw, ImageFont
 
 import config
+from consumer import s3
 
 
 def create_consumer() -> Consumer:
@@ -191,9 +192,64 @@ def send_to_dlq(consumer: Consumer, producer: Producer, msg, reason: str) -> Non
     logging.info("Sent message to DLQ: %s", reason)
 
 
-def process_message(payload: Dict[str, Any], _mongo_doc: dict) -> None:
-    """Process a valid puzzle image generation request."""
-    logging.info("Processing puzzleId=%s", payload.get("puzzleId"))
+def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
+    """
+    Process a valid puzzle image generation request.
+
+    Args:
+        payload (dict): Kafka message payload, must contain "puzzleId".
+        mongo_doc (dict): MongoDB document for the puzzle.
+        mongo_collection: PyMongo collection object to update the document.
+
+    Raises:
+        Exception: If image generation, upload, or Mongo update fails.
+    """
+    puzzle_id = payload.get("puzzleId")
+
+    board_size = mongo_doc.get("puzzleSize")
+    solution = mongo_doc.get("solution")
+    puzzle = mongo_doc.get("puzzle")
+
+    try:
+        solution_image = draw_sudoku_board(board_size, solution)
+        puzzle_image = draw_sudoku_board(board_size, puzzle)
+        logging.info("Generated puzzle and solution images for puzzleId=%s", puzzle_id)
+    except Exception as e:
+        logging.exception("Failed to generate Sudoku images for puzzleId=%s", puzzle_id)
+        raise e
+
+    solution_key = f"{puzzle_id}/solution.png"
+    puzzle_key = f"{puzzle_id}/puzzle.png"
+    bucket_name = config.S3_BUCKET_NAME
+
+    try:
+        s3.upload_image(solution_image, solution_key, bucket_name)
+        s3.upload_image(puzzle_image, puzzle_key, bucket_name)
+    except Exception as e:
+        logging.exception("Failed to upload images for puzzleId=%s", puzzle_id)
+        raise e
+
+    try:
+        mongo_collection.update_one(
+            {"puzzleId": puzzle_id},
+            {
+                "$set": {
+                    "solutionImagePath": solution_key,
+                    "puzzleImagePath": puzzle_key,
+                    "status": "SUCCESS",
+                    "updatedAt": datetime.now(timezone.utc),
+                }
+            },
+        )
+        logging.info(
+            "Updated Mongo document for puzzleId=%s with image paths and status SUCCESS",
+            puzzle_id,
+        )
+    except PyMongoError as e:
+        logging.exception(
+            "Failed to update MongoDB document for puzzleId=%s", puzzle_id
+        )
+        raise e
 
 
 def handle_message(
@@ -252,7 +308,7 @@ def handle_message(
         return
 
     try:
-        process_message(payload, mongo_doc)
+        process_message(payload, mongo_doc, mongo_collection)
     except Exception as e:  # pylint: disable=broad-exception-caught
         logging.exception("Processing failed: %s", e)
         send_to_retriable(consumer, producer, msg)
