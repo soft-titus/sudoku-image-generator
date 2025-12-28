@@ -31,3 +31,11 @@
 - feat: Implement upload to s3 / minio + update mongodb after successful image generation
 - fix: add helper function to draw sudoku board and numbers with pillow
 
+
+
+## 1.2.1 - 2025-12-28
+- Merge pull request #5 from soft-titus/dev
+- fix: move dependency not needed by consumer to requirements-local.txt, only needed for ingester and producer for local testing
+- Merge pull request #4 from soft-titus/dev
+- docs: Update README.md, added features section
+
