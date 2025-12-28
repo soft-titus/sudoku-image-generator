@@ -12,6 +12,14 @@ The worker will:
 
 ---
 
+## Features
+- Horizontally scalable with KEDA + Kafka
+- Supports Sudoku sizes 4x4, 9x9, and 16x16
+- Fully configurable image generation via environment variables
+- Uploads generated images to AWS S3 or S3-compatible storage (e.g. MinIO)
+
+---
+
 ## Requirements
 - python 3.13
 - Docker & Docker Compose (for local development)
