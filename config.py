@@ -4,6 +4,14 @@ Configuration, read from environment variables
 
 import os
 
+
+def parse_rgb(value: str) -> tuple[int, int, int]:
+    """Parse RGB string to tuple."""
+    value = value.strip().strip("()")
+    r, g, b = map(int, value.split(","))
+    return (r, g, b)
+
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 KAFKA_CONSUMER_GROUP_NAME = os.getenv(
@@ -42,7 +50,7 @@ MONGO_URI = (
     f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}" f"@{MONGO_HOST}:{MONGO_PORT}/{MONGO_DB}"
 )
 if MONGO_OPTIONS:
-    MONGO_URI = f"{MONGO_URI}?{MONGO_OPTIONS}"
+    MONGO_URI = f"{MONGO_URI}?{MONGO_OPTIONS.lstrip('?')}"
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "sudoku")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "verySECRET123")
@@ -53,9 +61,23 @@ S3_HOST = os.getenv("S3_HOST")
 S3_PORT = os.getenv("S3_PORT")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "sudoku")
 
-
 S3_ENDPOINT_URL = ""
 if S3_HOST:
     S3_ENDPOINT_URL = f"{S3_PROTOCOL}://{S3_HOST}"
     if S3_PORT:
         S3_ENDPOINT_URL = f"{S3_ENDPOINT_URL}:{S3_PORT}"
+
+SUDOKU_CELL_SIZE_PX = int(os.getenv("SUDOKU_CELL_SIZE_PX", "133"))
+SUDOKU_THICK_LINE_PX = int(os.getenv("SUDOKU_THICK_LINE_PX", "5"))
+SUDOKU_THIN_LINE_PX = int(os.getenv("SUDOKU_THIN_LINE_PX", "2"))
+SUDOKU_FONT_SIZE_PX = int(os.getenv("SUDOKU_FONT_SIZE_PX", "86"))
+SUDOKU_CELL_FIRST_COLOR_RGB = parse_rgb(
+    os.getenv("SUDOKU_CELL_FIRST_COLOR_RGB", "255,255,255")
+)
+SUDOKU_CELL_SECOND_COLOR_RGB = parse_rgb(
+    os.getenv("SUDOKU_CELL_SECOND_COLOR_RGB", "235,235,235")
+)
+SUDOKU_LINE_COLOR_RGB = parse_rgb(os.getenv("SUDOKU_LINE_COLOR_RGB", "0,0,0"))
+SUDOKU_TEXT_COLOR_RGB = parse_rgb(os.getenv("SUDOKU_TEXT_COLOR_RGB", "0,0,0"))
+SUDOKU_IMAGE_DPI = int(os.getenv("SUDOKU_IMAGE_DPI", "300"))
+SUDOKU_TEXT_FONT_PATH = "fonts/DejaVuSans-Bold.ttf"
