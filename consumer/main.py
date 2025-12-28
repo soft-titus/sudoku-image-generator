@@ -167,17 +167,23 @@ def send_to_retriable(
     )
 
 
-def send_to_dlq(consumer: Consumer, producer: Producer, msg, reason: str) -> None:
+def send_to_dlq(
+    consumer: Consumer, producer: Producer, msg, reason: str, mongo_collection
+) -> None:
     """Send message to DLQ with failure reason."""
+    failed_at = datetime.now(timezone.utc)
     try:
         payload = json.loads(msg.value().decode("utf-8")) if msg.value() else {}
     except (ValueError, AttributeError):
         payload = {"rawValue": str(msg.value())}
 
+    puzzle_id = payload.get("puzzleId")
+    mark_puzzle_failed(mongo_collection, puzzle_id, reason, failed_at)
+
     payload.update(
         {
             "failedReason": reason,
-            "failedAt": datetime.now(timezone.utc).isoformat(),
+            "failedAt": failed_at.isoformat(),
         }
     )
 
@@ -190,6 +196,35 @@ def send_to_dlq(consumer: Consumer, producer: Producer, msg, reason: str) -> Non
     producer.poll(0)
     commit_message(consumer, msg)
     logging.info("Sent message to DLQ: %s", reason)
+
+
+def mark_puzzle_failed(
+    mongo_collection,
+    puzzle_id: str,
+    reason: str,
+    failed_at: datetime,
+) -> None:
+    """Mark a Sudoku puzzle document as FAILED in MongoDB."""
+    if not puzzle_id:
+        return
+
+    try:
+        mongo_collection.update_one(
+            {"puzzleId": puzzle_id},
+            {
+                "$set": {
+                    "status": "FAILED",
+                    "failedAt": failed_at,
+                    "failedReason": reason,
+                    "updatedAt": datetime.now(timezone.utc),
+                }
+            },
+        )
+    except PyMongoError:
+        logging.exception(
+            "Failed to update MongoDB puzzle as FAILED puzzleId=%s",
+            puzzle_id,
+        )
 
 
 def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
@@ -262,7 +297,7 @@ def handle_message(
     try:
         payload = json.loads(msg.value().decode("utf-8")) if msg.value() else {}
     except (ValueError, AttributeError):
-        send_to_dlq(consumer, producer, msg, "invalid JSON payload")
+        send_to_dlq(consumer, producer, msg, "invalid JSON payload", mongo_collection)
         return
     logging.debug("payload: %s", payload)
 
@@ -271,19 +306,9 @@ def handle_message(
         commit_message(consumer, msg)
         return
 
-    retry_count = extract_retry_count(msg)
-    if retry_count >= config.TASK_MAX_RETRIES:
-        send_to_dlq(
-            consumer,
-            producer,
-            msg,
-            f"retry-count exceeded: {retry_count}",
-        )
-        return
-
     puzzle_id = payload.get("puzzleId")
     if not puzzle_id:
-        send_to_dlq(consumer, producer, msg, "missing puzzleId")
+        send_to_dlq(consumer, producer, msg, "missing puzzleId", mongo_collection)
         return
 
     try:
@@ -299,12 +324,24 @@ def handle_message(
             producer,
             msg,
             f"puzzleId not found: {puzzle_id}",
+            mongo_collection,
+        )
+        return
+
+    retry_count = extract_retry_count(msg)
+    if retry_count >= config.TASK_MAX_RETRIES:
+        send_to_dlq(
+            consumer,
+            producer,
+            msg,
+            f"retry-count exceeded: {retry_count}",
+            mongo_collection,
         )
         return
 
     reason = validate_puzzle_document(mongo_doc)
     if reason:
-        send_to_dlq(consumer, producer, msg, reason)
+        send_to_dlq(consumer, producer, msg, reason, mongo_collection)
         return
 
     try:
