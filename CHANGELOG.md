@@ -23,3 +23,11 @@
 - fix: skip heartbeat messages
 - fix: update .env.example, add S3_PROTOCOL env var
 
+
+
+## 1.2.0 - 2025-12-28
+- Merge pull request #3 from soft-titus/dev
+- docs: Update README.md, make the sample call to ingester clearer
+- feat: Implement upload to s3 / minio + update mongodb after successful image generation
+- fix: add helper function to draw sudoku board and numbers with pillow
+
