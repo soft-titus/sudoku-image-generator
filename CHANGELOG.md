@@ -39,3 +39,9 @@
 - Merge pull request #4 from soft-titus/dev
 - docs: Update README.md, added features section
 
+
+
+## 1.2.2 - 2025-12-28
+- Merge pull request #6 from soft-titus/dev
+- fix: update mongodb when image generation failed, set status as well as failedAt, failedReason, and updatedAt
+
