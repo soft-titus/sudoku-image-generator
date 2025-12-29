@@ -269,8 +269,8 @@ def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
             {"puzzleId": puzzle_id},
             {
                 "$set": {
-                    "solutionImagePath": solution_key,
-                    "puzzleImagePath": puzzle_key,
+                    "solutionImageKey": solution_key,
+                    "puzzleImageKey": puzzle_key,
                     "status": "SUCCESS",
                     "updatedAt": datetime.now(timezone.utc),
                 }
