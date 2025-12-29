@@ -45,3 +45,9 @@
 - Merge pull request #6 from soft-titus/dev
 - fix: update mongodb when image generation failed, set status as well as failedAt, failedReason, and updatedAt
 
+
+
+## 1.2.3 - 2025-12-29
+- Merge pull request #7 from soft-titus/dev
+- fix: change solutionImagePath and puzzleImagePath to solutionImageKey and puzzleImageKey when store image generation result to mongodb
+
