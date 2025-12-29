@@ -2,6 +2,8 @@
 Kafka consumer for Sudoku image generation messages.
 """
 
+import csv
+import io
 import json
 import logging
 from datetime import datetime, timezone, timedelta
@@ -48,6 +50,7 @@ def is_heartbeat(payload: Dict[str, Any]) -> bool:
     return payload.get("type") == "heartbeat"
 
 
+# pylint: disable=too-many-return-statements
 def validate_puzzle_document(doc: dict) -> Optional[str]:
     """Validate puzzle document stored in MongoDB."""
     valid_sizes = {4, 9, 16}
@@ -227,6 +230,7 @@ def mark_puzzle_failed(
         )
 
 
+# pylint: disable=too-many-locals
 def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
     """
     Process a valid puzzle image generation request.
@@ -246,6 +250,13 @@ def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
     puzzle = mongo_doc.get("puzzle")
 
     try:
+        solution_csv = board_to_csv_bytes(solution)
+        puzzle_csv = board_to_csv_bytes(puzzle)
+    except Exception as e:
+        logging.exception("Failed to generate Sudoku CSVs for puzzleId=%s", puzzle_id)
+        raise e
+
+    try:
         solution_image = draw_sudoku_board(board_size, solution)
         puzzle_image = draw_sudoku_board(board_size, puzzle)
         logging.info("Generated puzzle and solution images for puzzleId=%s", puzzle_id)
@@ -253,15 +264,33 @@ def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
         logging.exception("Failed to generate Sudoku images for puzzleId=%s", puzzle_id)
         raise e
 
-    solution_key = f"{puzzle_id}/solution.png"
-    puzzle_key = f"{puzzle_id}/puzzle.png"
+    solution_csv_key = f"{puzzle_id}/solution.csv"
+    puzzle_csv_key = f"{puzzle_id}/puzzle.csv"
+    solution_image_key = f"{puzzle_id}/solution.png"
+    puzzle_image_key = f"{puzzle_id}/puzzle.png"
     bucket_name = config.S3_BUCKET_NAME
 
     try:
-        s3.upload_image(solution_image, solution_key, bucket_name)
-        s3.upload_image(puzzle_image, puzzle_key, bucket_name)
+        s3.upload_bytes(
+            solution_csv,
+            solution_csv_key,
+            bucket_name,
+            content_type="text/csv; charset=utf-8",
+        )
+        s3.upload_bytes(
+            puzzle_csv,
+            puzzle_csv_key,
+            bucket_name,
+            content_type="text/csv; charset=utf-8",
+        )
+        s3.upload_image(
+            solution_image, solution_image_key, bucket_name, content_type="image/png"
+        )
+        s3.upload_image(
+            puzzle_image, puzzle_image_key, bucket_name, content_type="image/png"
+        )
     except Exception as e:
-        logging.exception("Failed to upload images for puzzleId=%s", puzzle_id)
+        logging.exception("Failed to upload artifacts for puzzleId=%s", puzzle_id)
         raise e
 
     try:
@@ -269,8 +298,10 @@ def process_message(payload: dict, mongo_doc: dict, mongo_collection) -> None:
             {"puzzleId": puzzle_id},
             {
                 "$set": {
-                    "solutionImageKey": solution_key,
-                    "puzzleImageKey": puzzle_key,
+                    "solutionCSVKey": solution_csv_key,
+                    "puzzleCSVKey": puzzle_csv_key,
+                    "solutionImageKey": solution_image_key,
+                    "puzzleImageKey": puzzle_image_key,
                     "status": "SUCCESS",
                     "updatedAt": datetime.now(timezone.utc),
                 }
@@ -353,6 +384,28 @@ def handle_message(
 
     commit_message(consumer, msg)
     return
+
+
+def board_to_csv_bytes(board: list[list[int]]) -> bytes:
+    """
+    Convert a 2D Sudoku board into CSV bytes.
+
+    - Cell value 0 is converted to an empty cell ("")
+    - Other numbers are written as-is
+
+    Args:
+        board: 2D list of integers.
+
+    Returns:
+        CSV content as UTF-8 encoded bytes.
+    """
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+
+    for row in board:
+        writer.writerow("" if cell == 0 else cell for cell in row)
+
+    return buffer.getvalue().encode("utf-8")
 
 
 # pylint: disable=too-many-locals

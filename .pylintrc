@@ -1,6 +1,2 @@
 [MASTER]
 init-hook='import sys, os; sys.path.insert(0, os.path.abspath("."))'
-
-[DESIGN]
-max-returns=10
-max-branches=15

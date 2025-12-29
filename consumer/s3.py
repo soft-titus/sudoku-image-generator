@@ -25,9 +25,7 @@ def get_s3_client() -> BaseClient:
 
 
 def upload_image(
-    image: "PIL.Image.Image",
-    object_name: str,
-    bucket: str,
+    image: "PIL.Image.Image", object_name: str, bucket: str, content_type: str
 ) -> None:
     """
     Upload a PIL image to S3 / MinIO as PNG.
@@ -36,6 +34,7 @@ def upload_image(
         image: PIL.Image object
         object_name: S3 object key (filename in bucket)
         bucket: S3 bucket name
+        content_type: Content-Type for the uploaded image
     """
     client = get_s3_client()
     buffer = io.BytesIO()
@@ -44,9 +43,30 @@ def upload_image(
 
     try:
         client.put_object(
-            Bucket=bucket, Key=object_name, Body=buffer, ContentType="image/png"
+            Bucket=bucket, Key=object_name, Body=buffer, ContentType=content_type
         )
         logging.info("Uploaded image to s3://%s/%s", bucket, object_name)
     except Exception as e:
         logging.exception("Failed to upload image %s to bucket %s", object_name, bucket)
+        raise e
+
+
+def upload_bytes(
+    data: bytes,
+    object_name: str,
+    bucket: str,
+    content_type: str,
+) -> None:
+    """Upload raw bytes to S3."""
+    client = get_s3_client()
+
+    try:
+        client.put_object(
+            Bucket=bucket,
+            Key=object_name,
+            Body=data,
+            ContentType=content_type,
+        )
+    except Exception as e:
+        logging.exception("Failed to upload bytes %s to bucket %s", object_name, bucket)
         raise e
