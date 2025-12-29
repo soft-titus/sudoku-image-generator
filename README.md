@@ -40,6 +40,7 @@ cd sudoku-image-generator
 ```bash
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
+pip install -r requirements-local.txt
 ```
 
 3. Install Git pre-commit hooks:
@@ -141,11 +142,10 @@ docker compose run --rm ingester \
 ,10,0,0,0,14,0,0,3,0,4,15,0,11,13,0,16"
 ```
 
-| Parameter   | Required | Notes |
-|-------------|----------|-------|
-| puzzle-id   | yes      | Any string value |
-| puzzle-size | no       | Default 9, valid: 4 / 9 / 16 |
-| level       | no       | Default "EASY", valid: "EASY" / "MEDIUM" / "HARD" |
+| Parameter   | Required | Notes                                                  |
+|-------------|----------|--------------------------------------------------------| puzzle-id   | yes      | Any string value                                       |
+| puzzle-size | no       | Default 9, valid: 4 / 9 / 16                           |
+| level       | no       | Default "EASY", valid: "EASY" / "MEDIUM" / "HARD"      |
 | status      | no       | Default "GENERATING_IMAGE", must be "GENERATING_IMAGE" |
 | solution    | no       | Sudoku solution; randomly generated if not provided    |
 | puzzle      | no       | Sudoku puzzle; randomly generated if not provided      |
@@ -161,9 +161,9 @@ If solution and puzzle are provided, they must match the puzzle size, or the wor
 docker compose run --rm producer --puzzle-id pz-001 --retry-count 0
 ```
 
-| Parameter   | Required | Notes |
-|-------------|----------|-------|
-| puzzle-id   | yes      | Must exist in MongoDB or worker will fail |
+| Parameter   | Required | Notes                                                   |
+|-------------|----------|---------------------------------------------------------|
+| puzzle-id   | yes      | Must exist in MongoDB or worker will fail               |
 | retry-count | no       | Default 0, must be less than TASK_MAX_RETRIES in `.env` |
 
 ---
