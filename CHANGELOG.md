@@ -51,3 +51,11 @@
 - Merge pull request #7 from soft-titus/dev
 - fix: change solutionImagePath and puzzleImagePath to solutionImageKey and puzzleImageKey when store image generation result to mongodb
 
+
+
+## 1.2.4 - 2025-12-29
+- Merge pull request #9 from soft-titus/dev
+- fix: remove public access from bucket
+- Merge pull request #8 from soft-titus/dev
+- docs: update README.md
+
