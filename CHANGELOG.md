@@ -59,3 +59,9 @@
 - Merge pull request #8 from soft-titus/dev
 - docs: update README.md
 
+
+
+## 1.3.0 - 2025-12-29
+- Merge pull request #10 from soft-titus/dev
+- feat: support generate CSV beside images and upload to s3 / minio
+
